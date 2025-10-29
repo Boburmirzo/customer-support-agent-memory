@@ -2,31 +2,50 @@
 
 A powerful, embeddable AI customer support solution that can be integrated into any website with a single JavaScript snippet. Built using [DigitalOcean's Gradient AI platform](https://www.digitalocean.com/products/gradient/platform) for AI agent capabilities and [Memori](https://github.com/GibsonAI/memori) for persistent conversation memory.
 
+## 📚 Documentation
+
+- **[Architecture Guide](ARCHITECTURE.md)** - Complete system architecture, data flows, and component responsibilities
+- **[Quick Reference](QUICK_REFERENCE.md)** - Fast API reference for common operations
+
 ## Features
 
 - 🤖 **AI-Powered Support**: Uses DigitalOcean's Gradient AI platform for contextual understanding
-- 🕷️ **Website Scraping**: Automatically analyzes website content for context-aware responses  
-- 💾 **Persistent Storage**: Agents and knowledge bases stored in PostgreSQL
+- 🧠 **Persistent Memory**: Domain-specific conversation memory with Memori integration
+- 🕷️ **Knowledge Base Management**: File uploads, text content, and URL scraping for context-aware responses  
+- 💾 **Persistent Storage**: Agents and knowledge bases stored in PostgreSQL with automatic synchronization
 - 🚀 **Easy Integration**: Single JavaScript snippet for any website
 - 🐳 **Docker Ready**: Complete containerized setup with docker-compose
-- 🔒 **Session Management**: Secure session handling with user tracking
+- 🔒 **Domain-Based Security**: Per-domain authentication and memory isolation
 - 🎨 **Customizable Widget**: Configurable appearance and behavior
+- ⚡ **Non-Blocking Deployment**: Background agent deployment with instant user feedback
 
 ## Architecture
+
+For detailed architecture documentation, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   Website       │    │   FastAPI        │    │   PostgreSQL    │
 │   + Widget.js   │◄──►│   Backend        │◄──►│   (Persistence) │
-│                 │    │   (DigitalOcean) │    │                 │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                │
-                                ▼
-                       ┌──────────────────┐
-                       │ DigitalOcean AI  │
-                       │  (Gradient AI)   │
-                       └──────────────────┘
+│                 │    │                  │    │   • Agents      │
+└─────────────────┘    └──────────────────┘    │   • KBs         │
+                                │               │   • Sessions    │
+                                │               │   • Domains     │
+                    ┌───────────┼───────────┐   └─────────────────┘
+                    │           │           │
+                    ▼           ▼           ▼
+         ┌──────────────┐  ┌────────────┐  ┌──────────────┐
+         │ DigitalOcean │  │   Memori   │  │  Knowledge   │
+         │  Gradient AI │  │    API     │  │  Bases (DO)  │
+         │   (Agents)   │  │ (per-domain)│  │              │
+         └──────────────┘  └────────────┘  └──────────────┘
 ```
+
+**Key Components**:
+- **DigitalOcean Client** (`digitalocean_client.py`) - Agent & KB management, access key creation
+- **Memori Client** (`memori_client.py`) - Domain-specific conversation memory
+- **Knowledge Uploader** (`knowledge_upload.py`) - File processing and knowledge base population
+- **Domain-Based Authentication** - Per-domain API keys and memory isolation
 
 ## Quick Start
 
@@ -116,17 +135,55 @@ Add this to your website's HTML:
 
 ## API Endpoints
 
+For complete API documentation, see [QUICK_REFERENCE.md](QUICK_REFERENCE.md).
+
+### Domain Registration
+
+#### Register Domain
+```http
+POST /register-domain
+Content-Type: application/json
+Authorization: Bearer YOUR_ADMIN_API_KEY
+
+{
+    "domain_name": "example.com",
+    "memori_api_key": "your-memori-key" (optional)
+}
+
+Response:
+{
+    "domain_id": "uuid-here",
+    "api_key": "generated-api-key",
+    "message": "Domain registered successfully"
+}
+```
+
 ### Session Management
 
 #### Start Session
 ```http
 POST /session
 Content-Type: application/json
-Authorization: Bearer YOUR_API_KEY
+X-Domain-ID: your-domain-id
 
 {
     "user_id": "user123",
-    "website_url": "https://example.com"
+    "website_url": "https://example.com" (optional)
+}
+```
+
+### Chat
+
+#### Ask Question
+```http
+POST /ask
+Content-Type: application/json
+X-Domain-ID: your-domain-id
+
+{
+    "question": "How do I reset my password?",
+    "session_id": "uuid-here",
+    "user_id": "user123"
 }
 ```
 
@@ -136,7 +193,7 @@ Authorization: Bearer YOUR_API_KEY
 ```http
 POST /knowledge/upload/file
 Content-Type: multipart/form-data
-Authorization: Bearer YOUR_API_KEY
+X-Domain-ID: your-domain-id
 
 Form data:
 - website_url: "https://example.com"
@@ -157,7 +214,7 @@ Supported file types:
 ```http
 POST /knowledge/upload/text
 Content-Type: application/json
-Authorization: Bearer YOUR_API_KEY
+X-Domain-ID: your-domain-id
 
 {
     "website_url": "https://example.com",
@@ -172,7 +229,7 @@ Authorization: Bearer YOUR_API_KEY
 ```http
 POST /knowledge/upload/url
 Content-Type: application/json
-Authorization: Bearer YOUR_API_KEY
+X-Domain-ID: your-domain-id
 
 {
     "website_url": "https://example.com",
@@ -186,7 +243,7 @@ Authorization: Bearer YOUR_API_KEY
 #### Get Supported File Types
 ```http
 GET /knowledge/supported-types
-Authorization: Bearer YOUR_API_KEY
+X-Domain-ID: your-domain-id
 
 Response:
 {
@@ -202,21 +259,22 @@ Response:
 }
 ```
 
-### Chat
+### Website Scraping
 
-#### Ask Question
+#### Scrape Website (Manual)
 ```http
-POST /ask
+POST /scrape
 Content-Type: application/json
-Authorization: Bearer YOUR_API_KEY
+X-Domain-ID: your-domain-id
 
 {
-    "question": "How do I reset my password?",
-    "session_id": "uuid-here",
-    "user_id": "user123",
-    "website_context": "https://example.com/login"
+    "website_url": "https://example.com",
+    "max_depth": 2,
+    "max_links": 20
 }
 ```
+
+**Note**: Widget no longer auto-scrapes. Use this endpoint manually to populate knowledge base.
 
 ## Environment Variables
 
@@ -227,31 +285,45 @@ Authorization: Bearer YOUR_API_KEY
 | `DIGITALOCEAN_KNOWLEDGE_BASE_NAME` | KB name prefix | `website-kb` |
 | `DIGITALOCEAN_AGENT_INSTRUCTIONS` | Agent instructions | Custom instructions |
 | `DIGITALOCEAN_MODEL` | AI model to use | `deepseek-ai/DeepSeek-V3` |
+| `MEMORI_BASE_URL` | Memori API endpoint | `https://memori-api-89r6e.ondigitalocean.app` |
+| `MEMORI_API_KEY` | Default Memori API key (optional) | - |
 | `POSTGRES_HOST` | PostgreSQL host | `localhost` |
 | `POSTGRES_PORT` | PostgreSQL port | `5432` |
 | `POSTGRES_DB` | Database name | `customer_support` |
 | `POSTGRES_USER` | Database user | `do_user` |
 | `POSTGRES_PASSWORD` | Database password | `do_user_password` |
+| `ADMIN_API_KEY` | Admin API key for domain registration | `test_api_key_123` |
 
 ## Database Schema
 
 The system automatically creates the following tables:
 
 ### Core Tables
+- `registered_domains` - Domain registration with API keys and Memori configuration
 - `user_sessions` - Manages user sessions with status tracking
-- `agents` - Stores DigitalOcean agent metadata and access keys
+- `agents` - Stores DigitalOcean agent metadata and access keys (domain-based)
 - `knowledge_bases` - Tracks knowledge base UUIDs and website associations
+- `conversation_history` - Stores chat history per session
 
 ### Agent Persistence
 ```sql
+-- Registered domains with per-domain configuration
+CREATE TABLE registered_domains (
+    id UUID PRIMARY KEY,
+    domain_name TEXT UNIQUE NOT NULL,      -- Base domain (e.g., "example.com")
+    api_key TEXT UNIQUE NOT NULL,          -- Domain-specific API key
+    memori_api_key TEXT,                   -- Optional Memori API key
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Agents table stores DigitalOcean agent information
 CREATE TABLE agents (
-    website_key TEXT PRIMARY KEY,
-    agent_uuid TEXT NOT NULL,
+    website_key TEXT PRIMARY KEY,          -- Hash of domain_name
+    agent_uuid UUID NOT NULL,
     agent_url TEXT NOT NULL,
-    agent_access_key TEXT,
+    agent_access_key TEXT,                 -- Fresh API key (32 chars)
     knowledge_base_uuids TEXT[],
-    website_url TEXT,
+    website_url TEXT,                      -- Normalized as https://{domain_name}
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -259,7 +331,7 @@ CREATE TABLE agents (
 -- Knowledge Bases table stores KB metadata
 CREATE TABLE knowledge_bases (
     website_key TEXT PRIMARY KEY,
-    kb_uuid TEXT NOT NULL,
+    kb_uuid UUID NOT NULL,
     website_url TEXT NOT NULL,
     kb_name TEXT,
     created_at TIMESTAMP DEFAULT NOW()
@@ -271,10 +343,15 @@ CREATE TABLE knowledge_bases (
 Check stored resources:
 
 ```sql
--- View all agents
-SELECT website_key, agent_uuid, website_url, created_at 
-FROM agents 
+-- View all registered domains
+SELECT id, domain_name, created_at 
+FROM registered_domains 
 ORDER BY created_at DESC;
+
+-- View all agents with their domains
+SELECT a.website_key, a.agent_uuid, a.website_url, a.agent_access_key IS NOT NULL as has_key, a.created_at 
+FROM agents a
+ORDER BY a.created_at DESC;
 
 -- View all knowledge bases
 SELECT website_key, kb_uuid, website_url, kb_name 
@@ -283,9 +360,17 @@ ORDER BY created_at DESC;
 
 -- Count resources
 SELECT 
+    (SELECT COUNT(*) FROM registered_domains) as total_domains,
     (SELECT COUNT(*) FROM agents) as total_agents,
     (SELECT COUNT(*) FROM knowledge_bases) as total_kbs,
     (SELECT COUNT(*) FROM user_sessions WHERE status = 'active') as active_sessions;
+
+-- Check agent access keys
+SELECT website_key, 
+       agent_uuid, 
+       LENGTH(agent_access_key) as key_length,
+       agent_access_key IS NOT NULL as has_key 
+FROM agents;
 ```
 
 ## Production Deployment
@@ -318,50 +403,91 @@ Monitor these metrics:
 
 ## Troubleshooting
 
+For detailed troubleshooting, see [ARCHITECTURE.md - Troubleshooting Section](ARCHITECTURE.md#troubleshooting--known-issues).
+
 ### Common Issues
 
 1. **Widget not appearing**
    - Check console for JavaScript errors
    - Verify API URL is correct
    - Ensure CORS is configured properly
+   - Verify X-Domain-ID header is set correctly
 
-2. **Database connection errors**
+2. **401 Unauthorized errors**
+   - **Fixed**: Access keys now created fresh via POST /agents/{uuid}/api_keys
+   - Verify domain is registered: Check `registered_domains` table
+   - Ensure X-Domain-ID header matches registered domain ID
+   - Check agent has valid access key: `SELECT agent_access_key FROM agents WHERE website_key = '...'`
+
+3. **Duplicate agents created**
+   - **Fixed**: Now uses domain_name from registered_domains for consistent website_key
+   - Single agent per registered domain regardless of URL variations (www vs non-www)
+   - Query: `SELECT * FROM agents WHERE website_url LIKE '%example.com%'`
+
+4. **Knowledge base 404 errors**
+   - **Fixed**: KBs now attached after agent deployment completes
+   - Background polling waits for STATUS_RUNNING before attaching KBs
+   - Check agent status: Look for "Background polling completed" in logs
+
+5. **Database connection errors**
    - Verify PostgreSQL is running
    - Check DATABASE_URL format
    - Verify user permissions (do_user)
-   - Run migration if tables missing: `psql -f migrate_db.sql`
+   - Ensure all required tables exist (run init.sql if needed)
 
-3. **DigitalOcean API errors**
+6. **DigitalOcean API errors**
    - Verify DIGITALOCEAN_TOKEN is valid
    - Check account access to Gradient AI
    - Monitor API rate limits
-   - Check agent and KB creation logs
+   - Check agent and KB creation logs for specific error messages
 
-4. **Persistence issues**
-   - Verify `agents` and `knowledge_bases` tables exist
-   - Check database logs for constraint violations
-   - Monitor startup logs for "Loaded X agents/KBs"
-   - Query database to verify resources saved correctly
+7. **Memori integration issues**
+   - **Fixed**: Now uses domain-specific API keys from registered_domains
+   - Verify memori_api_key is set for domain
+   - Check Memori API endpoint: `MEMORI_BASE_URL`
+   - Monitor logs for "Memori API success" messages
+
+8. **Widget not auto-scraping**
+   - **By design**: Auto-scraping removed for performance
+   - Use manual `/scrape` endpoint to populate knowledge base
+   - Or upload files via `/knowledge/upload/*` endpoints
 
 ### Code Structure
 
 ```
-├── main_gradient.py     # FastAPI application with DigitalOcean integration
-├── requirements.txt     # Python dependencies
-├── docker-compose.yml   # Docker services
-├── Dockerfile          # API container
-├── init.sql            # Database initialization with persistence tables
-├── migrate_db.sql      # Migration script for existing installations
-├── .env                # Environment variables
-├── DATABASE_PERSISTENCE.md  # Detailed persistence documentation
-├── IMPLEMENTATION_SUMMARY.md # Quick implementation reference
-├── ARCHITECTURE.md     # System architecture documentation
-├── QUICK_REFERENCE.md  # API quick reference
+├── main.py                      # FastAPI application with all endpoints
+├── digitalocean_client.py       # DigitalOcean Gradient AI client
+│                                #   - Agent creation & management
+│                                #   - Knowledge base operations
+│                                #   - Access key creation (POST /api_keys)
+├── memori_client.py             # Memori API client (domain-specific memory)
+│                                #   - MemoriClient class
+│                                #   - Async chat() and get_context() methods
+├── knowledge_upload.py          # Knowledge base file upload handler
+├── memori_tool.py               # Memori tool integration (legacy)
+├── auth.py                      # Authentication utilities
+├── requirements.txt             # Python dependencies
+├── docker-compose.yml           # Docker services configuration
+├── Dockerfile                   # API container definition
+├── init.sql                     # Database initialization schema
+├── Procfile                     # Heroku deployment configuration
+├── .env                         # Environment variables (not in repo)
+├── ARCHITECTURE.md              # 📚 Complete system architecture
+├── QUICK_REFERENCE.md           # 📘 API quick reference guide
+├── README.md                    # This file
 ├── static/
-│   ├── widget.js       # Embeddable widget
-│   └── demo.html       # Integration demo
-└── README.md           # This file
+│   ├── widget.js                # Embeddable widget (no auto-scrape)
+│   ├── demo.html                # Integration demo page
+│   └── knowledge_upload_demo.html # KB upload demo
+└── __pycache__/                 # Python bytecode cache
 ```
+
+**Key Files**:
+- **main.py**: Core FastAPI app with domain registration, session management, chat, and knowledge endpoints
+- **digitalocean_client.py**: Handles all DigitalOcean API interactions including agent/KB creation and access key management
+- **memori_client.py**: Dedicated module for Memori API integration with per-domain memory isolation
+- **knowledge_upload.py**: Processes file uploads (PDF, TXT, MD, JSON, CSV) and URL scraping
+- **widget.js**: Client-side embeddable widget (updated to remove auto-scraping)
 
 ## Contributing
 

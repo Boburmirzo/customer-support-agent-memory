@@ -9,9 +9,6 @@ import os
 import asyncio
 import asyncpg
 from fastapi import Header, HTTPException, Request
-
-# datetime not used in this module; keep import commented for future use if needed
-# from datetime import datetime
 import tldextract
 
 
