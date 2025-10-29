@@ -1,13 +1,12 @@
 # Customer Support AI Agent with DigitalOcean's Gradient AI platform and Memori
 
-A powerful, embeddable AI customer support solution that can be integrated into any website with a single JavaScript snippet. Built using DigitalOcean's Gradient AI platform for AI agent capabilities and Memori for persistent conversation memory.
+A powerful, embeddable AI customer support solution that can be integrated into any website with a single JavaScript snippet. Built using [DigitalOcean's Gradient AI platform](https://www.digitalocean.com/products/gradient/platform) for AI agent capabilities and [Memori](https://github.com/GibsonAI/memori) for persistent conversation memory.
 
 ## Features
 
 - 🤖 **AI-Powered Support**: Uses DigitalOcean's Gradient AI platform for contextual understanding
 - 🕷️ **Website Scraping**: Automatically analyzes website content for context-aware responses  
-- 💾 **Persistent Storage**: Agents and knowledge bases survive application restarts
-- 🗃️ **Dual Storage Pattern**: Fast memory cache with PostgreSQL fallback for reliability
+- 💾 **Persistent Storage**: Agents and knowledge bases stored in PostgreSQL
 - 🚀 **Easy Integration**: Single JavaScript snippet for any website
 - 🐳 **Docker Ready**: Complete containerized setup with docker-compose
 - 🔒 **Session Management**: Secure session handling with user tracking
@@ -29,12 +28,6 @@ A powerful, embeddable AI customer support solution that can be integrated into 
                        └──────────────────┘
 ```
 
-### Data Flow
-1. **Memory First**: Agents and knowledge bases cached in memory for fast access
-2. **Database Fallback**: If not in memory, loads from PostgreSQL
-3. **API Creation**: Creates new resources via DigitalOcean if not found
-4. **Auto-Save**: All resources automatically saved to database for persistence
-
 ## Quick Start
 
 ### Prerequisites
@@ -46,7 +39,7 @@ A powerful, embeddable AI customer support solution that can be integrated into 
 ### 1. Clone and Configure
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Boburmirzo/customer-support-agent-memory.git
 cd customer-support-agent-memori
 
 # Update your DigitalOcean credentials in .env file
@@ -118,53 +111,7 @@ Add this to your website's HTML:
 
 ```html
 <!-- Include the widget script -->
-<script src="http://localhost:8000/static/widget.js"></script>
-
-<!-- Initialize the widget -->
-<script>
-window.CustomerSupportWidgetConfig = {
-    apiUrl: 'http://localhost:8000',
-    data-domain-id: 'YOUR_GIBSONAI_MEMORI_API_KEY', // Required!
-    primaryColor: '#007bff',
-    widgetTitle: 'Customer Support',
-    welcomeMessage: 'Hi! How can I help you today?',
-    autoScrape: true
-};
-CustomerSupportWidget.init(window.CustomerSupportWidgetConfig);
-</script>
-```
-
-### Advanced Configuration
-
-```javascript
-CustomerSupportWidget.init({
-    // Required
-    apiUrl: 'https://your-api-domain.com',
-    apiKey: 'YOUR_GIBSONAI_MEMORI_API_KEY',
-    // Appearance
-    position: 'bottom-right', // 'bottom-left', 'top-right', 'top-left'
-    primaryColor: '#007bff',
-    secondaryColor: '#f8f9fa',
-    textColor: '#333',
-    
-    // Content
-    widgetTitle: 'Customer Support',
-    welcomeMessage: 'Hi! How can I help you today?',
-    placeholder: 'Type your message...',
-    
-    // Behavior
-    autoScrape: true // Automatically scrape current website
-});
-```
-
-### Widget API
-
-```javascript
-// Programmatic control
-CustomerSupportWidget.open();                    // Open chat window
-CustomerSupportWidget.close();                   // Close chat window
-CustomerSupportWidget.sendMessage('Hello!');     // Send a message
-CustomerSupportWidget.destroy();                 // Remove widget
+<script src="http://localhost:8000/static/widget.js" data-domain-id="your-domain-id"></script>
 ```
 
 ## API Endpoints
@@ -255,19 +202,6 @@ Response:
 }
 ```
 
-### Website Scraping (Legacy - Use /knowledge/upload/url instead)
-```http
-POST /scrape
-Content-Type: application/json
-Authorization: Bearer YOUR_API_KEY
-
-{
-    "website_url": "https://example.com",
-    "max_pages": 10,
-    "depth": 2
-}
-```
-
 ### Chat
 
 #### Ask Question
@@ -332,16 +266,6 @@ CREATE TABLE knowledge_bases (
 );
 ```
 
-### Migration
-
-**For existing installations**, run the migration script to add persistence tables:
-
-```bash
-psql -h localhost -U do_user -d customer_support -f migrate_db.sql
-```
-
-This adds the `agents` and `knowledge_bases` tables without affecting existing data.
-
 ### Monitoring
 
 Check stored resources:
@@ -364,49 +288,6 @@ SELECT
     (SELECT COUNT(*) FROM user_sessions WHERE status = 'active') as active_sessions;
 ```
 
-For detailed documentation on database persistence, see `DATABASE_PERSISTENCE.md`.
-
-## Customization
-
-### Custom Instructions
-
-Modify the agent instructions via environment variable:
-
-```bash
-# In .env file
-DIGITALOCEAN_AGENT_INSTRUCTIONS="You are a Customer Support AI Assistant for [Your Company].
-
-[Add your custom instructions here]"
-```
-
-Or modify in `main_gradient.py`:
-
-```python
-instructions=os.getenv("DIGITALOCEAN_AGENT_INSTRUCTIONS", dedent(
-    """\
-    You are a Customer Support AI Assistant.
-    [Your instructions here]
-    """
-))
-```
-
-### Custom Styling
-
-The widget supports extensive CSS customization:
-
-```javascript
-CustomerSupportWidget.init({
-    primaryColor: '#your-brand-color',
-    secondaryColor: '#your-bg-color',
-    // Add custom CSS
-    customCSS: `
-        #customer-support-widget {
-            /* Your custom styles */
-        }
-    `
-});
-```
-
 ## Production Deployment
 
 ### Security Considerations
@@ -420,7 +301,7 @@ CustomerSupportWidget.init({
 
 ### Scaling
 
-1. **Database**: Use managed PostgreSQL service (AWS RDS, etc.)
+1. **Database**: Use managed PostgreSQL service (DigitalOcean's Fully Managed PostgreSQL)
 2. **API**: Deploy behind load balancer
 3. **Caching**: Implement Redis for session caching
 4. **CDN**: Serve widget.js from CDN
@@ -461,27 +342,6 @@ Monitor these metrics:
    - Check database logs for constraint violations
    - Monitor startup logs for "Loaded X agents/KBs"
    - Query database to verify resources saved correctly
-
-### Debug Mode
-
-Enable debug logging:
-
-```bash
-export LOG_LEVEL=DEBUG
-uvicorn main:app --reload --log-level debug
-```
-
-## Development
-
-### Running Tests
-
-```bash
-# Install test dependencies
-pip install pytest pytest-asyncio
-
-# Run tests
-pytest tests/
-```
 
 ### Code Structure
 
